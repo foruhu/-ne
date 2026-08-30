@@ -205,14 +205,14 @@
 
                 let memoSections = [];
                 for (const [category, items] of Object.entries(maneuverGroups)) {
-                    let itemTexts = items.map(i => `【${i.name}】\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\n${i.effect}`);
+                    let itemTexts = items.map(i => `【${i.name}】《T:${i.timing}／C:${i.cost}／R:${i.range}》${i.effect}`);
                     memoSections.push(`--${category}--\n` + itemTexts.join('\n'));
                 }
                 const maneuversText = memoSections.length > 0 ? memoSections.join('\n\n') : 'マニューバなし';
 
                 // --- 5. メモ欄全体の組み立て ---
                 // charClass に既に "/" が含まれているため、余分なスラッシュは付けない
-                const troubleText =  statusList.map(s => `${s.label}：${s.value}/${s.max}`).join('\n');
+                const troubleText = statusList.map(s => `${s.label}：${s.value}/${s.max}`).join('\n');
 
                 const memoText = `名前: ${dollName}\n` +
                                  `ポジション: ${position}\n` +
@@ -326,4 +326,3 @@
 
 </body>
 </html>
-
