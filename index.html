@@ -87,7 +87,6 @@
                                 maneuverGroups[category].push(`【${mName}】\n《T:${timing}／C:${cost}／R:${range}》\n${effect}`);
 
                                 // --- チャットパレットへの追加 ---
-                                // 空白やダミーでなければチャットパレットにダイスロール用コマンドを追加
                                 if (mName !== '' && timing !== 'ー' && timing !== '') {
                                     if (effect.includes('攻撃') || effect.includes('白兵') || effect.includes('肉弾')) {
                                         chatPaletteLines.push(`5>=[攻撃力] ${mName}`);
@@ -113,10 +112,9 @@
                                  `--- マニューバ一覧 ---\n` +
                                  maneuversText;
 
-                // チャットパレット文字列の結合
                 const chatPaletteText = chatPaletteLines.join('\n');
 
-                // --- ココフォリア用JSON構造 ---
+                // --- ココフォリア用JSON構造（プロパティを正確に指定） ---
                 const cocofoliaData = {
                     "kind": "character",
                     "data": {
@@ -133,7 +131,8 @@
                             { "label": "腕部", "value": 2, "max": 2 },
                             { "label": "脚部", "value": 2, "max": 2 }
                         ],
-                        "chatPalette": chatPaletteText
+                        "chatPalette": chatPaletteText,
+                        "commands": chatPaletteText // 一部のココフォリアのバージョンやインポート仕様への保険
                     }
                 };
 
