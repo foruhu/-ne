@@ -76,7 +76,6 @@
                 let charClass = '';
                 let initiative = 0;
 
-                // 保管所テキストの先頭付近にあるタイトル行（例: 最初の非空行や「タイトル：〜」など）を候補として保持
                 for (let i = 0; i < Math.min(lines.length, 5); i++) {
                     const l = lines[i].trim();
                     if (l && !l.startsWith('キャラクター名') && !l.startsWith('名前') && !l.startsWith('URL') && !l.startsWith('出力')) {
@@ -112,7 +111,6 @@
                     if (initMatch) initiative = parseInt(initMatch[1], 10);
                 });
 
-                // キャラクター名が空の場合、タイトル行を名前に採用する
                 if (!dollName) {
                     if (fallbackTitle) {
                         dollName = fallbackTitle;
@@ -168,19 +166,22 @@
                     }
                 });
 
-                // --- 4. パーツ（せぼね等）の抽出 ---
+                // --- 4. パーツ（せぼね等）の抽出（柔軟な判定） ---
                 lines.forEach(line => {
                     const trimmed = line.trim();
                     const normalized = trimmed.replace(/：/g, ':');
                     
-                    let partMatch = normalized.match(/^(?:[【［].*?[】］])?\s*([^:0-9\s]+)\s*:\s*(\d+)\s*\/\s*(\d+)/);
+                    // 「パーツ名: 現在値/最大値」の形式をより広くキャッチする
+                    // 例: [頭] せぼね: 1/1 や せぼね: 0/1 などを検出
+                    let partMatch = normalized.match(/(?:[【［].*?[】］])?\s*([^:\s]+)\s*[:：]\s*(\d+)\s*\/\s*(\d+)/);
                     if (partMatch) {
                         const partName = partMatch[1].trim();
                         const val = parseInt(partMatch[2], 10);
                         const max = parseInt(partMatch[3], 10);
 
-                        const ignoreWords = ['名前', 'ポジション', 'クラス', '行動値', 'メインクラス', 'サブクラス', '記憶のカケラ', '未練'];
+                        const ignoreWords = ['名前', 'ポジション', 'クラス', '行動値', 'メインクラス', 'サブクラス', '記憶のカケラ', '未練', 'キャラクター名'];
                         if (partName && !ignoreWords.includes(partName)) {
+                            // まだステータスリストに存在しない場合のみ追加
                             if (!statusList.some(s => s.label === partName)) {
                                 statusList.push({ label: partName, value: val, max: max });
                             }
