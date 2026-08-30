@@ -14,18 +14,22 @@
         #outputMessage { margin-top: 10px; color: #2e7d32; font-weight: bold; text-align: center; }
         .result { background: #272822; color: #f8f8f2; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 250px; overflow-y: auto; }
         .warning { color: #c62828; font-weight: bold; text-align: center; margin-top: 8px; }
+        #scriptStatus { font-size: 12px; color: #999; text-align: right; margin-top: -10px; margin-bottom: 10px; }
+        #fatalError { display: none; background: #ffebee; border: 1px solid #c62828; color: #b71c1c; padding: 12px; border-radius: 4px; margin-bottom: 20px; white-space: pre-wrap; font-family: monospace; font-size: 13px; }
     </style>
 </head>
 <body>
 
     <h2>永い後日談のネクロニカ - ココフォリア駒変換ツール</h2>
+    <div id="scriptStatus">スクリプト読み込み中...</div>
+    <div id="fatalError"></div>
     <div class="card">
         <p>1. キャラクター保管所でネクロニカのキャラシの「データ出力 ＞ テキスト」をコピー</p>
         <p>2. 下の入力欄に貼り付け</p>
 
         <textarea id="inputText" placeholder="ここにテキストをペースト..."></textarea>
         <br><br>
-        <button onclick="convertAndCopy()">ココフォリア用JSONをクリップボードにコピー</button>
+        <button id="convertBtn" type="button">ココフォリア用JSONをクリップボードにコピー</button>
         <div id="outputMessage"></div>
         <div id="warningMessage" class="warning"></div>
     </div>
@@ -36,7 +40,20 @@
     </div>
 
   <script>
+        // スクリプト全体で起きた予期しないエラーを画面上に必ず表示する
+        // （alert がブロックされる環境や、ボタンが無反応に見える原因の切り分け用）
+        window.addEventListener('error', function (e) {
+            const fatalEl = document.getElementById('fatalError');
+            if (fatalEl) {
+                fatalEl.style.display = 'block';
+                fatalEl.textContent = '致命的なスクリプトエラー: ' + e.message +
+                    ' (' + e.filename + ':' + e.lineno + ':' + e.colno + ')';
+            }
+        });
+
         function convertAndCopy() {
+            const statusEl = document.getElementById('scriptStatus');
+            if (statusEl) statusEl.textContent = 'ボタン処理を実行中...';
             try {
                 const rawText = document.getElementById('inputText').value;
                 const msgEl = document.getElementById('outputMessage');
@@ -47,6 +64,7 @@
 
                 if (!rawText) {
                     alert('テキストを入力してください。');
+                    if (statusEl) statusEl.textContent = '準備完了（テキスト未入力）';
                     return;
                 }
 
@@ -194,28 +212,4 @@
 
                 // --- 5. メモ欄全体の組み立て ---
                 // charClass に既に "/" が含まれているため、余分なスラッシュは付けない
-                const troubleText = statusList.map(s => `${s.label}：${s.value}/${s.max}`).join('\n');
-
-                const memoText = `名前: ${dollName}\n` +
-                                 `ポジション: ${position}\n` +
-                                 `クラス： ${charClass}\n` +
-                                 ` 行動値: ${initiative}\n\n` +
-                                 `記憶のかけら\n` +
-                                 memoryText + `\n\n` +
-                                 `未練・依存\n` +
-                                 troubleText + `\n\n` +
-                                 `--- マニューバ一覧 ---\n` +
-                                 maneuversText;
-
-                // --- 6. チャットパレット用のテキスト組み立て ---
-                let chatPaletteLines = [
-                    "nm 【未練決定】",
-                    "1nc 【対話判定】",
-                    "1nc 【狂気判定】",
-                    "1nc 【行動判定】"
-                ];
-
-                for (const [category, items] of Object.entries(maneuverGroups)) {
-                    chatPaletteLines.push(`--${category}--`);
-                    items.forEach(i => {
-                        chatPaletteLines.push(`【${i.name}】\\n《
+                const troubleText = 
