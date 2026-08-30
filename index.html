@@ -84,21 +84,22 @@
                     }
                 });
 
-                // 1. メモ欄用のテキスト組み立て（改行なしの1行形式に統一）
+                // 1. メモ欄用のマニューバテキスト組み立て（これまで通りの改行ありの見やすい形式）
                 let memoSections = [];
                 for (const [category, items] of Object.entries(maneuverGroups)) {
-                    memoSections.push(`--${category}--`);
-                    items.forEach(i => {
-                        memoSections.push(`【${i.name}】《T:${i.timing}／C:${i.cost}／R:${i.range}》${i.effect}`);
-                    });
+                    let itemTexts = items.map(i => `【${i.name}】\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\n${i.effect}`);
+                    memoSections.push(`--${category}--\n` + itemTexts.join('\n'));
                 }
-                const maneuversText = memoSections.length > 0 ? memoSections.join('\n') : 'マニューバなし';
+                const maneuversText = memoSections.length > 0 ? memoSections.join('\n\n') : 'マニューバなし';
 
-                const memoText = `【${dollName}】\nポジション: ${position} / クラス: ${charClass}\n行動値: ${initiative}\n\n` +
+                // ご指定いただいた形式でメモのヘッダー部分を構築
+                const memoText = `${dollName}\n` +
+                                 `ポジション: ${position}\n` +
+                                 `クラス： ${charClass} / 行動値: ${initiative}\n\n` +
                                  `--- マニューバ一覧 ---\n` +
                                  maneuversText;
 
-                // 2. チャットパレット用のテキスト組み立て（こちらも1行形式）
+                // 2. チャットパレット用のテキスト組み立て（\n を文字列として挟む形式）
                 let chatPaletteLines = [
                     "nm 【未練決定】",
                     "1nc 【対話判定】",
@@ -109,7 +110,6 @@
                 for (const [category, items] of Object.entries(maneuverGroups)) {
                     chatPaletteLines.push(`--${category}--`);
                     items.forEach(i => {
-                        // 文字列として \n がココフォリアに渡るようにエスケープを調整
                         chatPaletteLines.push(`【${i.name}】\\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\\n${i.effect}`);
                     });
                 }
