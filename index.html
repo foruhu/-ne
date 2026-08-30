@@ -58,7 +58,7 @@
                 const initMatch = rawText.match(/行動値[：\s]*(\d+)/);
                 const initiative = initMatch ? parseInt(initMatch[1], 10) : 0;
 
-                // --- マニューバ部分の変換とカテゴリ重複の整理 ---
+                // --- マニューバ部分の解析と整理 ---
                 const lines = rawText.split('\n');
                 let maneuverGroups = {}; 
                 let chatPaletteLines = [
@@ -80,17 +80,20 @@
                             let effect = parts.slice(4).join(':').trim();
 
                             if (mName && mName !== '') {
+                                // メモ欄用グループ
                                 if (!maneuverGroups[category]) {
                                     maneuverGroups[category] = [];
                                 }
-                                maneuverGroups[category].push(`【${mName}】《T:${timing}／C:${cost}／R:${range}》${effect}`);
+                                maneuverGroups[category].push(`【${mName}】\n《T:${timing}／C:${cost}／R:${range}》\n${effect}`);
 
-                                // --- チャットパレット用のコマンド自動生成 ---
-                                // アクションや白兵攻撃、肉弾攻撃などの場合はチャットパレットにダイスロールを追加
-                                if (effect.includes('攻撃') || effect.includes('移動') || effect.includes('支援') || effect.includes('妨害') || timing.includes('アクション')) {
-                                    chatPaletteInfo = `5>=[攻撃力] ${mName} (攻撃/判定)`;
-                                    chatPaletteLines.push(`// 【${mName}】 (${timing})`);
-                                    chatPaletteLines.push(`2d6 ${mName}`);
+                                // --- チャットパレットへの追加 ---
+                                // 空白やダミーでなければチャットパレットにダイスロール用コマンドを追加
+                                if (mName !== '' && timing !== 'ー' && timing !== '') {
+                                    if (effect.includes('攻撃') || effect.includes('白兵') || effect.includes('肉弾')) {
+                                        chatPaletteLines.push(`5>=[攻撃力] ${mName}`);
+                                    } else {
+                                        chatPaletteLines.push(`2d6 ${mName} (${timing})`);
+                                    }
                                 }
                             }
                         }
