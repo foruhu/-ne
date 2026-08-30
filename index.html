@@ -33,8 +33,8 @@
         <div id="jsonPreview" class="result">（ここに結果が表示されます）</div>
     </div>
 
-    <script>
-         function convertAndCopy() {
+   <script>
+        function convertAndCopy() {
             try {
                 const rawText = document.getElementById('inputText').value;
                 const msgEl = document.getElementById('outputMessage');
@@ -58,13 +58,40 @@
                 const initMatch = rawText.match(/行動値[：\s]*(\d+)/);
                 const initiative = initMatch ? parseInt(initMatch[1], 10) : 0;
 
+                // --- マニューバ部分を綺麗に変換する処理 ---
+                // テキストからマニューバの行をすべて抜き出す
+                const lines = rawText.split('\n');
+                let formattedManeuvers = [];
+                let currentCategory = '';
+
+                lines.forEach(line => {
+                    // [ポジション] や [頭] などの行をチェック
+                    if (line.includes('[ポジション]') || line.includes('[メインクラス]') || line.includes('[サブクラス]') || line.includes('[頭]') || line.includes('[腕]') || line.includes('[胴]') || line.includes('[脚]')) {
+                        // 項目を分割 (例: "[ポジション]  少女  : ラピッド : 0 : 0 : 効果")
+                        let parts = line.split(':').map(p => p.trim());
+                        if (parts.length >= 5) {
+                            let categoryMatch = line.match(/\[(.*?)\]/);
+                            let category = categoryMatch ? categoryMatch[1] : '';
+                            let mName = parts[0].replace(/\[.*?\]/, '').trim();
+                            let timing = parts[1];
+                            let cost = parts[2];
+                            let range = parts[3];
+                            let effect = parts.slice(4).join(':').trim();
+
+                            if (mName && mName !== '') {
+                                // ご希望の形式に変換: 【スキル名】《T:タイミング／C:コスト／R:射程》効果
+                                formattedManeuvers.push(`--${category}--\n【${mName}】《T:${timing}／C:${cost}／R:${range}》${effect}`);
+                            }
+                        }
+                    }
+                });
+
+                const maneuversText = formattedManeuvers.length > 0 ? formattedManeuvers.join('\n\n') : 'マニューバなし';
+
                 // --- ココフォリア用メモの整形 ---
-                // ご希望の形式や、キャラシの情報を綺麗にまとめます
                 const memoText = `【${dollName}】\nポジション: ${position} / クラス: ${charClass}\n行動値: ${initiative}\n\n` +
-                                 `--- パーソナルデータ ---\n` +
-                                 (rawText.match(/暗示[\s\S]*?(?=\n■|\n\n■)/) || [''])[0] + '\n\n' +
-                                 `--- マニューバ・パーツ一覧 ---\n` +
-                                 (rawText.match(/\[部位\][\s\S]*?(?=\n■|\n\n$)/) || [''])[0] + '\n\n' +
+                                 `--- マニューバ一覧 ---\n` +
+                                 maneuversText + `\n\n` +
                                  `--- キャラクターシート全文 ---\n${rawText}`;
 
                 // --- ココフォリア用JSON構造 ---
