@@ -84,7 +84,19 @@
                     }
                 });
 
-                // 1. チャットパレットおよびメモ欄用のテキスト組み立て（\n を文字列として挟む）
+                // 1. キャラクターメモ欄用のテキスト組み立て（\nを入れず、通常の改行で見やすく）
+                let memoSections = [];
+                for (const [category, items] of Object.entries(maneuverGroups)) {
+                    let itemTexts = items.map(i => `【${i.name}】\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\n${i.effect}`);
+                    memoSections.push(`--${category}--\n` + itemTexts.join('\n'));
+                }
+                const maneuversMemoText = memoSections.length > 0 ? memoSections.join('\n\n') : 'マニューバなし';
+
+                const memoText = `【${dollName}】\nポジション: ${position} / クラス: ${charClass}\n行動値: ${initiative}\n\n` +
+                                 `--- マニューバ一覧 ---\n` +
+                                 maneuversMemoText;
+
+                // 2. チャットパレット用のテキスト組み立て（\n を文字列として含める）
                 let chatPaletteLines = [
                     "nm 【未練決定】",
                     "1nc 【対話判定】",
@@ -92,26 +104,14 @@
                     "1nc 【行動判定】"
                 ];
 
-                let memoSections = [];
-
                 for (const [category, items] of Object.entries(maneuverGroups)) {
                     chatPaletteLines.push(`--${category}--`);
-                    memoSections.push(`--${category}--`);
-                    
                     items.forEach(i => {
-                        // 各要素を \n 文字列で結合
-                        const formattedManeuver = `【${i.name}】\\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\\n${i.effect}`;
-                        chatPaletteLines.push(formattedManeuver);
-                        memoSections.push(formattedManeuver);
+                        chatPaletteLines.push(`【${i.name}】\\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\\n${i.effect}`);
                     });
                 }
 
                 const chatPaletteText = chatPaletteLines.join('\n');
-                const maneuversText = memoSections.join('\n');
-
-                const memoText = `【${dollName}】\nポジション: ${position} / クラス: ${charClass}\n行動値: ${initiative}\n\n` +
-                                 `--- マニューバ一覧 ---\n` +
-                                 maneuversText;
 
                 // --- ココフォリア用JSON構造 ---
                 const cocofoliaData = {
