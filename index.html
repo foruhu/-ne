@@ -69,11 +69,12 @@
                 const lines = rawText.split('\n');
                 const warnings = [];
 
-                // --- 1. 基本データの抽出（名前・タイトル等） ---
+                // --- 1. 基本データの抽出 ---
                 let dollName = '';
                 let fallbackTitle = '';
-                let position = '未設定';
-                let charClass = '';
+                let position = '';
+                let mainClass = '';
+                let subClass = '';
                 let initiative = 0;
 
                 for (let i = 0; i < Math.min(lines.length, 5); i++) {
@@ -101,10 +102,22 @@
                         if (val) position = val;
                     }
 
+                    let mainClassMatch = trimmedLine.match(/^メインクラス[：:]\s*(.+)/);
+                    if (mainClassMatch) {
+                        const val = mainClassMatch[1].trim();
+                        if (val) mainClass = val;
+                    }
+
+                    let subClassMatch = trimmedLine.match(/^サブクラス[：:]\s*(.+)/);
+                    if (subClassMatch) {
+                        const val = subClassMatch[1].trim();
+                        if (val) subClass = val;
+                    }
+
                     let classMatch = trimmedLine.match(/^クラス[：:]\s*(.+)/);
-                    if (classMatch) {
+                    if (classMatch && !mainClass && !subClass) {
                         const val = classMatch[1].trim();
-                        if (val) charClass = val;
+                        if (val) mainClass = val;
                     }
 
                     let initMatch = trimmedLine.match(/^行動値[：:]\s*(\d+)/);
@@ -121,10 +134,8 @@
                     }
                 }
 
-                // --- 2. ステータスリストの初期化 ---
+                // --- 2. ステータスリストの構築（未練とせぼね） ---
                 let statusList = [];
-
-                // --- 3. 未練・依存の抽出 ---
                 let inTrouble = false;
 
                 lines.forEach(line => {
@@ -166,17 +177,12 @@
                     }
                 });
 
-                // --- 4. パーツは「せぼね」のみを個別に取得、または自動追加する ---
                 let seboneVal = 0;
                 let seboneMax = 0;
-                let seboneFound = false;
-
                 lines.forEach(line => {
                     const trimmed = line.trim();
                     const normalized = trimmed.replace(/：/g, ':');
-                    
                     if (normalized.includes('せぼね')) {
-                        seboneFound = true;
                         let numMatch = normalized.match(/(\d+)\s*\/\s*(\d+)/);
                         if (numMatch) {
                             seboneVal = parseInt(numMatch[1], 10);
@@ -185,10 +191,9 @@
                     }
                 });
 
-                // ステータスの最後尾に「せぼね」を必ず追加する（他のパーツは無視されます）
                 statusList.push({ label: 'せぼね', value: seboneVal, max: seboneMax });
 
-                // --- 5. 記憶のカケラの抽出 ---
+                // --- 3. 記憶のカケラの抽出 ---
                 let memoryFragments = [];
                 let capturingMemory = false;
 
@@ -217,9 +222,9 @@
                     }
                 });
 
-                const memoryText = memoryFragments.length > 0 ? memoryFragments.join('') : '記憶のカケラなし';
+                const memoryText = memoryFragments.length > 0 ? memoryFragments.join('\n') : '';
 
-                // --- 6. マニューバ部分の解析と整理 ---
+                // --- 4. マニューバ部分の収集（カテゴリ別グループ化） ---
                 let maneuverGroups = {};
 
                 lines.forEach(line => {
@@ -245,24 +250,39 @@
                     }
                 });
 
-                let memoSections = [];
-                for (const [category, items] of Object.entries(maneuverGroups)) {
-                    let itemTexts = items.map(i => `【${i.name}】《T:${i.timing}／C:${i.cost}／R:${i.range}》${i.effect}`);
-                    memoSections.push(`--${category}--\n` + itemTexts.join('\n'));
+                // --- 5. メモ欄全体の組み立て（ご指定のフォーマットに完全準拠） ---
+                let classLine = subClass ? `クラス： ${mainClass} / ${subClass}` : `クラス： ${mainClass}`;
+                
+                let memoLines = [
+                    `PC: ${dollName}`,
+                    `ポジション: ${position}`,
+                    classLine,
+                    `行動値: ${initiative}`,
+                    `記憶のかけら`,
+                    memoryText,
+                    ""
+                ];
+
+                const targetCategories = ['ポジション', 'メインクラス', 'サブクラス', '頭', '腕', '胴', '脚'];
+                
+                targetCategories.forEach(cat => {
+                    if (maneuverGroups[cat] && maneuverGroups[cat].length > 0) {
+                        let names = maneuverGroups[cat].map(i => `【${i.name}】`).join('');
+                        memoLines.push(`--${cat}--${names}`);
+                    }
+                });
+
+                // 上記以外のカテゴリがあれば最後に追加
+                for (const [cat, items] of Object.entries(maneuverGroups)) {
+                    if (!targetCategories.includes(cat)) {
+                        let names = items.map(i => `【${i.name}】`).join('');
+                        memoLines.push(`--${cat}--${names}`);
+                    }
                 }
-                const maneuversText = memoSections.length > 0 ? memoSections.join('\n\n') : 'マニューバなし';
 
-                // --- 7. メモ欄全体の組み立て ---
-                const memoText = `名前: ${dollName}\n` +
-                                 `ポジション: ${position}\n` +
-                                 `クラス： ${charClass}\n` +
-                                 `行動値: ${initiative}\n\n` +
-                                 `記憶のかけら\n` +
-                                 memoryText + `\n\n` +
-                                 `--- マニューバ一覧 ---\n` +
-                                 maneuversText;
+                const memoText = memoLines.join('\n');
 
-                // --- 8. チャットパレット用のテキスト組み立て ---
+                // --- 6. チャットパレット用のテキスト組み立て ---
                 let chatPaletteLines = [
                     "nm 【未練決定】",
                     "1nc 【対話判定】",
