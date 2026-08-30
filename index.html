@@ -69,11 +69,21 @@
                 const lines = rawText.split('\n');
                 const warnings = [];
 
-                // --- 1. 基本データの抽出 ---
+                // --- 1. 基本データの抽出（タイトルや名前の取得） ---
                 let dollName = '';
+                let fallbackTitle = '';
                 let position = '未設定';
                 let charClass = '';
                 let initiative = 0;
+
+                // 保管所テキストの先頭付近にあるタイトル行（例: 最初の非空行や「タイトル：〜」など）を候補として保持
+                for (let i = 0; i < Math.min(lines.length, 5); i++) {
+                    const l = lines[i].trim();
+                    if (l && !l.startsWith('キャラクター名') && !l.startsWith('名前') && !l.startsWith('URL') && !l.startsWith('出力')) {
+                        fallbackTitle = l;
+                        break;
+                    }
+                }
 
                 lines.forEach(line => {
                     const trimmedLine = line.trim();
@@ -102,12 +112,18 @@
                     if (initMatch) initiative = parseInt(initMatch[1], 10);
                 });
 
+                // キャラクター名が空の場合、タイトル行を名前に採用する
                 if (!dollName) {
-                    dollName = '名無しのドール';
-                    warnings.push('キャラクター名が読み取れませんでした。「名無しのドール」として出力しています。');
+                    if (fallbackTitle) {
+                        dollName = fallbackTitle;
+                        warnings.push('キャラクター名が未入力のため、タイトル「' + dollName + '」を名前として使用します。');
+                    } else {
+                        dollName = '名無しのドール';
+                        warnings.push('キャラクター名が読み取れませんでした。「名無しのドール」として出力しています。');
+                    }
                 }
 
-                // --- 2. ステータスリストの初期化（未練・依存 および パーツ群） ---
+                // --- 2. ステータスリストの初期化 ---
                 let statusList = [];
 
                 // --- 3. 未練・依存の抽出 ---
@@ -126,7 +142,6 @@
                         }
                         if (!trimmed) return;
 
-                        // 〇〇への依存：3/4 や 〇〇への未練：■■■□ などの形式に対応
                         const mRatio = trimmed.match(/^(.*?)\s*への\s*(依存)?\s*(\d+)\s*\/\s*(\d+)/);
                         const mSquare = trimmed.match(/^(.*?)\s*への\s*(依存)?\s*([■□]{2,})\s*(.*)$/);
 
@@ -153,32 +168,30 @@
                     }
                 });
 
-                if (statusList.length === 0) {
-                    warnings.push('未練・依存の情報が読み取れませんでした。');
-                }
-
-                // --- 4. パーツ（せぼね等の基本パーツ・強化パーツ）のステータス抽出 ---
-                // 「せぼね：1/1」や「せぼね: 0/1」などの形式を検出してステータスに追加
+                // --- 4. パーツ（せぼね等）の抽出 ---
                 lines.forEach(line => {
                     const trimmed = line.trim();
-                    // 例: [頭] せぼね：1/1  または  せぼね: 0/1  または  [頭] せぼね: 0
-                    // 部位やカテゴリ名に含まれるパーツ行を広くキャッチ
-                    const partMatch = trimmed.match(/(?:[【［].*?[】］])?\s*([^\s：:]+)[：:]\s*(\d+)\s*\/\s*(\d+)/);
+                    const normalized = trimmed.replace(/：/g, ':');
+                    
+                    let partMatch = normalized.match(/^(?:[【［].*?[】］])?\s*([^:0-9\s]+)\s*:\s*(\d+)\s*\/\s*(\d+)/);
                     if (partMatch) {
                         const partName = partMatch[1].trim();
                         const val = parseInt(partMatch[2], 10);
                         const max = parseInt(partMatch[3], 10);
 
-                        // すでにステータスリストに同名がなければ追加（重複防止、0も含める）
-                        // ※ 未練や依存、あるいはマニューバ名っぽくないもの（「頭」「腕」などの部位自体や説明文を除外）
-                        if (partName && !['名前', 'ポジション', 'クラス', '行動値', 'メインクラス', 'サブクラス'].includes(partName)) {
-                            // 既に同じラベルがなければ追加
+                        const ignoreWords = ['名前', 'ポジション', 'クラス', '行動値', 'メインクラス', 'サブクラス', '記憶のカケラ', '未練'];
+                        if (partName && !ignoreWords.includes(partName)) {
                             if (!statusList.some(s => s.label === partName)) {
                                 statusList.push({ label: partName, value: val, max: max });
                             }
                         }
                     }
                 });
+
+                if (statusList.length === 0) {
+                    warnings.push('ステータス（未練やパーツ）の情報が読み取れませんでした。');
+                    statusList = [{ label: 'せぼね', value: 1, max: 1 }];
+                }
 
                 // --- 5. 記憶のカケラの抽出 ---
                 let memoryFragments = [];
