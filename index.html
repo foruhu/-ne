@@ -40,8 +40,6 @@
     </div>
 
   <script>
-        // スクリプト全体で起きた予期しないエラーを画面上に必ず表示する
-        // （alert がブロックされる環境や、ボタンが無反応に見える原因の切り分け用）
         window.addEventListener('error', function (e) {
             const fatalEl = document.getElementById('fatalError');
             if (fatalEl) {
@@ -80,7 +78,6 @@
                 lines.forEach(line => {
                     const trimmedLine = line.trim();
 
-                    // 名前・キャラクター名：値が空の場合にコロン自体を拾わないようにする
                     let nameMatch = trimmedLine.match(/^(?:キャラクター名|名前)[：:]\s*(.+)/);
                     if (nameMatch) {
                         const val = nameMatch[1].trim();
@@ -110,9 +107,7 @@
                     warnings.push('キャラクター名が読み取れませんでした。「名無しのドール」として出力しています。');
                 }
 
-                // --- 2. 記憶のカケラの抽出 ---
-                // ヘッダー行（[記憶のカケラ] 内容）自体は取り込まず、以降の行を
-                // 次の [xxx] または ■ セクションが始まるまでそのまま連結する。
+                // --- 2. 記憶のカケラの抽出（説明文を除いて1行に繋げる） ---
                 let memoryFragments = [];
                 let capturingMemory = false;
 
@@ -120,7 +115,13 @@
                     const trimmed = line.trim();
                     if (trimmed.startsWith('[記憶のカケラ]')) {
                         capturingMemory = true;
-                        return; // ヘッダー行の「内容」という文字は無視
+                        // 同行にデータがある場合
+                        let content = trimmed.replace(/.*\[記憶のカケラ\][\s　]*/, '').trim();
+                        if (content) {
+                            let mMatch = content.match(/^(\d+:[【［].*?[】］])/);
+                            if (mMatch) memoryFragments.push(mMatch[1]);
+                        }
+                        return;
                     }
                     if (capturingMemory) {
                         if (trimmed.startsWith('■') || trimmed.startsWith('[')) {
@@ -128,16 +129,19 @@
                             return;
                         }
                         if (trimmed) {
-                            memoryFragments.push(trimmed);
+                            // 「3:【甘い唇】 柔らかな〜」のような行から「3:【甘い唇】」の部分だけを抜き出す
+                            let mMatch = trimmed.match(/^(\d+:[【［].*?[】］])/);
+                            if (mMatch) {
+                                memoryFragments.push(mMatch[1]);
+                            }
                         }
                     }
                 });
 
-                const memoryText = memoryFragments.length > 0 ? memoryFragments.join('\n') : '記憶のカケラなし';
+                // 改行せずにそのまま結合する
+                const memoryText = memoryFragments.length > 0 ? memoryFragments.join('') : '記憶のカケラなし';
 
                 // --- 3. 未練・依存の抽出 ---
-                // [未練] セクション内の「〇〇への(依存) ■■■□ 発狂時効果」形式の行を解析。
-                // 対象名が空欄（未記入）の行はスキップする。
                 let statusList = [];
                 let inTrouble = false;
 
@@ -145,7 +149,7 @@
                     const trimmed = line.trim();
                     if (trimmed.startsWith('[未練]')) {
                         inTrouble = true;
-                        return; // 見出し行（内容／狂気度／発狂時）は読み飛ばす
+                        return;
                     }
                     if (inTrouble) {
                         if (trimmed.startsWith('■') || trimmed.startsWith('[')) {
@@ -179,7 +183,6 @@
 
                 lines.forEach(line => {
                     if (line.includes('[ポジション]') || line.includes('[メインクラス]') || line.includes('[サブクラス]') || line.includes('[頭]') || line.includes('[腕]') || line.includes('[胴]') || line.includes('[脚]')) {
-                        // 全角コロンが混ざっていても半角に統一してから分割する
                         const normalized = line.replace(/：/g, ':');
                         let parts = normalized.split(':').map(p => p.trim());
                         if (parts.length >= 5) {
@@ -211,7 +214,6 @@
                 const maneuversText = memoSections.length > 0 ? memoSections.join('\n\n') : 'マニューバなし';
 
                 // --- 5. メモ欄全体の組み立て ---
-                // charClass に既に "/" が含まれているため、余分なスラッシュは付けない
                 const troubleText = statusList.map(s => `${s.label}：${s.value}/${s.max}`).join('\n');
 
                 const memoText = `名前: ${dollName}\n` +
@@ -243,7 +245,6 @@
                 const chatPaletteText = chatPaletteLines.join('\n');
 
                 // --- ココフォリア用JSON構造 ---
-                // status は実際のキャラシから読み取った未練・依存を反映する
                 const cocofoliaData = {
                     "kind": "character",
                     "data": {
@@ -288,7 +289,6 @@
             }
         }
 
-        // clipboard API が使えない環境向けのフォールバック
         function copyFallback(text, msgEl) {
             try {
                 const textarea = document.createElement('textarea');
@@ -310,8 +310,6 @@
             }
         }
 
-        // ボタンにイベントを結びつける。DOM構築後に確実に実行されるよう
-        // DOMContentLoaded 内で行い、成功したらステータス表示を更新する。
         document.addEventListener('DOMContentLoaded', function () {
             const btn = document.getElementById('convertBtn');
             const statusEl = document.getElementById('scriptStatus');
