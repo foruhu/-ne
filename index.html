@@ -58,16 +58,12 @@
                 const initMatch = rawText.match(/行動値[：\s]*(\d+)/);
                 const initiative = initMatch ? parseInt(initMatch[1], 10) : 0;
 
-                // --- マニューバ部分を綺麗に変換する処理 ---
-                // テキストからマニューバの行をすべて抜き出す
+                // --- マニューバ部分の変換とカテゴリ重複の整理 ---
                 const lines = rawText.split('\n');
-                let formattedManeuvers = [];
-                let currentCategory = '';
+                let maneuverGroups = {}; // カテゴリごとにマニューバをまとめる
 
                 lines.forEach(line => {
-                    // [ポジション] や [頭] などの行をチェック
                     if (line.includes('[ポジション]') || line.includes('[メインクラス]') || line.includes('[サブクラス]') || line.includes('[頭]') || line.includes('[腕]') || line.includes('[胴]') || line.includes('[脚]')) {
-                        // 項目を分割 (例: "[ポジション]  少女  : ラピッド : 0 : 0 : 効果")
                         let parts = line.split(':').map(p => p.trim());
                         if (parts.length >= 5) {
                             let categoryMatch = line.match(/\[(.*?)\]/);
@@ -79,20 +75,28 @@
                             let effect = parts.slice(4).join(':').trim();
 
                             if (mName && mName !== '') {
-                                // ご希望の形式に変換: 【スキル名】《T:タイミング／C:コスト／R:射程》効果
-                                formattedManeuvers.push(`--${category}--\n【${mName}】《T:${timing}／C:${cost}／R:${range}》${effect}`);
+                                if (!maneuverGroups[category]) {
+                                    maneuverGroups[category] = [];
+                                }
+                                maneuverGroups[category].push(`【${mName}】《T:${timing}／C:${cost}／R:${range}》${effect}`);
                             }
                         }
                     }
                 });
 
-                const maneuversText = formattedManeuvers.length > 0 ? formattedManeuvers.join('\n\n') : 'マニューバなし';
+                // カテゴリごとに、見出しは最初の一つだけにしてテキストを組み立てる
+                let formattedSections = [];
+                for (const [category, items] of Object.entries(maneuverGroups)) {
+                    let sectionText = `--${category}--\n` + items.join('\n');
+                    formattedSections.push(sectionText);
+                }
+
+                const maneuversText = formattedSections.length > 0 ? formattedSections.join('\n\n') : 'マニューバなし';
 
                 // --- ココフォリア用メモの整形 ---
                 const memoText = `【${dollName}】\nポジション: ${position} / クラス: ${charClass}\n行動値: ${initiative}\n\n` +
                                  `--- マニューバ一覧 ---\n` +
-                                 maneuversText + `\n\n` +
-                                 `--- キャラクターシート全文 ---\n${rawText}`;
+                                 maneuversText;
 
                 // --- ココフォリア用JSON構造 ---
                 const cocofoliaData = {
