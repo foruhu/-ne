@@ -167,7 +167,6 @@
                 });
 
                 // --- 4. パーツ（せぼね等）のステータス抽出 ---
-                // 「せぼね」をはじめとするパーツ行（例: [胴] せぼね: 1/1 や せぼね: 1/1）をステータス欄に追加
                 lines.forEach(line => {
                     const trimmed = line.trim();
                     const normalized = trimmed.replace(/：/g, ':');
