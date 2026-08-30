@@ -212,4 +212,118 @@
 
                 // --- 5. メモ欄全体の組み立て ---
                 // charClass に既に "/" が含まれているため、余分なスラッシュは付けない
-                const troubleText = 
+                const troubleText =  statusList.map(s => `${s.label}：${s.value}/${s.max}`).join('\n');
+
+                const memoText = `名前: ${dollName}\n` +
+                                 `ポジション: ${position}\n` +
+                                 `クラス： ${charClass}\n` +
+                                 ` 行動値: ${initiative}\n\n` +
+                                 `記憶のかけら\n` +
+                                 memoryText + `\n\n` +
+                                 `未練・依存\n` +
+                                 troubleText + `\n\n` +
+                                 `--- マニューバ一覧 ---\n` +
+                                 maneuversText;
+
+                // --- 6. チャットパレット用のテキスト組み立て ---
+                let chatPaletteLines = [
+                    "nm 【未練決定】",
+                    "1nc 【対話判定】",
+                    "1nc 【狂気判定】",
+                    "1nc 【行動判定】"
+                ];
+
+                for (const [category, items] of Object.entries(maneuverGroups)) {
+                    chatPaletteLines.push(`--${category}--`);
+                    items.forEach(i => {
+                        chatPaletteLines.push(`【${i.name}】\\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\\n${i.effect}`);
+                    });
+                }
+
+                const chatPaletteText = chatPaletteLines.join('\n');
+
+                // --- ココフォリア用JSON構造 ---
+                // status は実際のキャラシから読み取った未練・依存を反映する
+                const cocofoliaData = {
+                    "kind": "character",
+                    "data": {
+                        "name": dollName,
+                        "memo": memoText,
+                        "initiative": initiative,
+                        "status": statusList,
+                        "chatPalette": chatPaletteText,
+                        "commands": chatPaletteText
+                    }
+                };
+
+                const jsonString = JSON.stringify(cocofoliaData, null, 2);
+
+                // プレビューに表示
+                previewEl.textContent = jsonString;
+
+                if (warnings.length > 0) {
+                    warnEl.textContent = '⚠ ' + warnings.join(' / ');
+                }
+
+                // クリップボードへコピー
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(jsonString).then(() => {
+                        msgEl.textContent = 'コピー完了しました！ココフォリアの部屋で [Ctrl + V] で配置してください。';
+                    }).catch(err => {
+                        copyFallback(jsonString, msgEl);
+                    });
+                } else {
+                    copyFallback(jsonString, msgEl);
+                }
+
+                if (statusEl) statusEl.textContent = '準備完了（変換済み）';
+            } catch (error) {
+                const fatalEl = document.getElementById('fatalError');
+                if (fatalEl) {
+                    fatalEl.style.display = 'block';
+                    fatalEl.textContent = '変換中にエラーが発生しました: ' + error.message + '\n' + (error.stack || '');
+                }
+                alert('エラーが発生しました: ' + error.message);
+                if (statusEl) statusEl.textContent = '準備完了（エラー発生）';
+            }
+        }
+
+        // clipboard API が使えない環境向けのフォールバック
+        function copyFallback(text, msgEl) {
+            try {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                const success = document.execCommand('copy');
+                document.body.removeChild(textarea);
+                if (success) {
+                    msgEl.textContent = 'コピー完了しました！ココフォリアの部屋で [Ctrl + V] で配置してください。';
+                } else {
+                    msgEl.textContent = '自動コピーに失敗しました。プレビュー欄から手動でコピーしてください。';
+                }
+            } catch (e) {
+                msgEl.textContent = '自動コピー非対応です。下のプレビューからコピーしてください。';
+            }
+        }
+
+        // ボタンにイベントを結びつける。DOM構築後に確実に実行されるよう
+        // DOMContentLoaded 内で行い、成功したらステータス表示を更新する。
+        document.addEventListener('DOMContentLoaded', function () {
+            const btn = document.getElementById('convertBtn');
+            const statusEl = document.getElementById('scriptStatus');
+            if (btn) {
+                btn.addEventListener('click', convertAndCopy);
+            }
+            if (statusEl) {
+                statusEl.textContent = btn ? '準備完了' : 'ボタン要素が見つかりません（HTML破損の可能性）';
+            }
+        });
+    </script>
+
+</body>
+</html>
+
