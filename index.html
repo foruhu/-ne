@@ -1,40 +1,4 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ネクロニカ ココフォリア駒変換ツール</title>
-    <style>
-        body { font-family: sans-serif; max-width: 900px; margin: 30px auto; padding: 20px; background: #f4f6f8; color: #333; }
-        h2 { color: #b51a1a; }
-        .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        textarea { width: 100%; height: 220px; font-family: monospace; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        button { background: #b51a1a; color: white; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; width: 100%; }
-        button:hover { background: #901313; }
-        #outputMessage { margin-top: 10px; color: #2e7d32; font-weight: bold; text-align: center; }
-        .result { background: #272822; color: #f8f8f2; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 250px; overflow-y: auto; }
-    </style>
-</head>
-<body>
-
-    <h2>永い後日談のネクロニカ - ココフォリア駒変換ツール</h2>
-    <div class="card">
-        <p>1. キャラクター保管所でネクロニカのキャラシの「データ出力 ＞ テキスト」をコピー</p>
-        <p>2. 下の入力欄に貼り付け</p>
-        
-        <textarea id="inputText" placeholder="ここにテキストをペースト..."></textarea>
-        <br><br>
-        <button onclick="convertAndCopy()">ココフォリア用JSONをクリップボードにコピー</button>
-        <div id="outputMessage"></div>
-    </div>
-
-    <div class="card">
-        <h3>生成されるJSONプレビュー:</h3>
-        <div id="jsonPreview" class="result">（ここに結果が表示されます）</div>
-    </div>
-
-    <script>
-        function convertAndCopy() {
+function convertAndCopy() {
             try {
                 const rawText = document.getElementById('inputText').value;
                 const msgEl = document.getElementById('outputMessage');
@@ -45,23 +9,35 @@
                     return;
                 }
 
-                // データの抽出（安全策付き）
-                const nameMatch = rawText.match(/名前[：\s]*(.+)/) || rawText.match(/ドール名[：\s]*(.+)/);
+                // --- データの抽出 ---
+                const nameMatch = rawText.match(/キャラクター名[：\s]*(.+)/) || rawText.match(/名前[：\s]*(.+)/);
                 const dollName = nameMatch ? nameMatch[1].trim() : '名無しのドール';
 
                 const posMatch = rawText.match(/ポジション[：\s]*(.+)/);
                 const position = posMatch ? posMatch[1].trim() : '未設定';
 
-                const playerMatch = rawText.match(/プレイヤー名[：\s]*(.+)/);
-                const player = playerMatch ? playerMatch[1].trim() : '';
+                const classMatch = rawText.match(/クラス[：\s]*(.+)/);
+                const charClass = classMatch ? classMatch[1].trim() : '';
 
-                // ココフォリア用JSON構造
+                const initMatch = rawText.match(/行動値[：\s]*(\d+)/);
+                const initiative = initMatch ? parseInt(initMatch[1], 10) : 0;
+
+                // --- ココフォリア用メモの整形 ---
+                // ご希望の形式や、キャラシの情報を綺麗にまとめます
+                const memoText = `【${dollName}】\nポジション: ${position} / クラス: ${charClass}\n行動値: ${initiative}\n\n` +
+                                 `--- パーソナルデータ ---\n` +
+                                 (rawText.match(/暗示[\s\S]*?(?=\n■|\n\n■)/) || [''])[0] + '\n\n' +
+                                 `--- マニューバ・パーツ一覧 ---\n` +
+                                 (rawText.match(/\[部位\][\s\S]*?(?=\n■|\n\n$)/) || [''])[0] + '\n\n' +
+                                 `--- キャラクターシート全文 ---\n${rawText}`;
+
+                // --- ココフォリア用JSON構造 ---
                 const cocofoliaData = {
                     "kind": "character",
                     "data": {
                         "name": dollName,
-                        "memo": `プレイヤー: ${player}\nポジション: ${position}\n\n--- キャラクターシート情報 ---\n${rawText}`,
-                        "initiative": 0,
+                        "memo": memoText,
+                        "initiative": initiative,
                         "params": [
                             { "label": "狂気度", "value": 0, "max": 10 },
                             { "label": "ドゥーム", "value": 0, "max": 5 }
@@ -86,17 +62,13 @@
                     navigator.clipboard.writeText(jsonString).then(() => {
                         msgEl.textContent = 'コピー完了しました！ココフォリアの部屋で [Ctrl + V] で配置してください。';
                     }).catch(err => {
-                        msgEl.textContent = 'プレビュー欄から手動でコピーしてください（クリップボード制限）。';
+                        msgEl.textContent = 'プレビュー欄から手動でコピーしてください。';
                     });
                 } else {
-                    msgEl.textContent = 'お使いのブラウザは自動コピー非対応です。下のプレビューからコピーしてください。';
+                    msgEl.textContent = '自動コピー非対応です。下のプレビューからコピーしてください。';
                 }
 
             } catch (error) {
                 alert('エラーが発生しました: ' + error.message);
             }
         }
-    </script>
-
-</body>
-</html>
