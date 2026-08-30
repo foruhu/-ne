@@ -107,42 +107,10 @@
                     warnings.push('キャラクター名が読み取れませんでした。「名無しのドール」として出力しています。');
                 }
 
-                // --- 2. 記憶のカケラの抽出（説明文を除いて1行に繋げる） ---
-                let memoryFragments = [];
-                let capturingMemory = false;
-
-                lines.forEach(line => {
-                    const trimmed = line.trim();
-                    if (trimmed.startsWith('[記憶のカケラ]')) {
-                        capturingMemory = true;
-                        // 同行にデータがある場合
-                        let content = trimmed.replace(/.*\[記憶のカケラ\][\s　]*/, '').trim();
-                        if (content) {
-                            let mMatch = content.match(/^(\d+:[【［].*?[】］])/);
-                            if (mMatch) memoryFragments.push(mMatch[1]);
-                        }
-                        return;
-                    }
-                    if (capturingMemory) {
-                        if (trimmed.startsWith('■') || trimmed.startsWith('[')) {
-                            capturingMemory = false;
-                            return;
-                        }
-                        if (trimmed) {
-                            // 「3:【甘い唇】 柔らかな〜」のような行から「3:【甘い唇】」の部分だけを抜き出す
-                            let mMatch = trimmed.match(/^(\d+:[【［].*?[】］])/);
-                            if (mMatch) {
-                                memoryFragments.push(mMatch[1]);
-                            }
-                        }
-                    }
-                });
-
-                // 改行せずにそのまま結合する
-                const memoryText = memoryFragments.length > 0 ? memoryFragments.join('') : '記憶のカケラなし';
+                // --- 2. ステータスリストの初期化（未練・依存 および パーツ群） ---
+                let statusList = [];
 
                 // --- 3. 未練・依存の抽出 ---
-                let statusList = [];
                 let inTrouble = false;
 
                 lines.forEach(line => {
@@ -158,12 +126,24 @@
                         }
                         if (!trimmed) return;
 
-                        const m = trimmed.match(/^(.*?)\s*への\s*(依存)?\s*([■□]{2,})\s*(.*)$/);
-                        if (m) {
-                            const target = m[1].trim();
+                        // 〇〇への依存：3/4 や 〇〇への未練：■■■□ などの形式に対応
+                        const mRatio = trimmed.match(/^(.*?)\s*への\s*(依存)?\s*(\d+)\s*\/\s*(\d+)/);
+                        const mSquare = trimmed.match(/^(.*?)\s*への\s*(依存)?\s*([■□]{2,})\s*(.*)$/);
+
+                        if (mRatio) {
+                            const target = mRatio[1].trim();
                             if (target) {
-                                const isDependency = !!m[2];
-                                const squares = m[3];
+                                const isDependency = !!mRatio[2];
+                                const value = parseInt(mRatio[3], 10);
+                                const max = parseInt(mRatio[4], 10);
+                                const label = isDependency ? `${target}への依存` : `${target}への未練`;
+                                statusList.push({ label, value, max });
+                            }
+                        } else if (mSquare) {
+                            const target = mSquare[1].trim();
+                            if (target) {
+                                const isDependency = !!mSquare[2];
+                                const squares = mSquare[3];
                                 const value = (squares.match(/■/g) || []).length;
                                 const max = squares.length;
                                 const label = isDependency ? `${target}への依存` : `${target}への未練`;
@@ -174,11 +154,64 @@
                 });
 
                 if (statusList.length === 0) {
-                    warnings.push('未練・依存の情報が読み取れませんでした。デフォルト値を使用しています。');
-                    statusList = [{ label: '〇〇への未練', value: 3, max: 4 }];
+                    warnings.push('未練・依存の情報が読み取れませんでした。');
                 }
 
-                // --- 4. マニューバ部分の解析と整理 ---
+                // --- 4. パーツ（せぼね等の基本パーツ・強化パーツ）のステータス抽出 ---
+                // 「せぼね：1/1」や「せぼね: 0/1」などの形式を検出してステータスに追加
+                lines.forEach(line => {
+                    const trimmed = line.trim();
+                    // 例: [頭] せぼね：1/1  または  せぼね: 0/1  または  [頭] せぼね: 0
+                    // 部位やカテゴリ名に含まれるパーツ行を広くキャッチ
+                    const partMatch = trimmed.match(/(?:[【［].*?[】］])?\s*([^\s：:]+)[：:]\s*(\d+)\s*\/\s*(\d+)/);
+                    if (partMatch) {
+                        const partName = partMatch[1].trim();
+                        const val = parseInt(partMatch[2], 10);
+                        const max = parseInt(partMatch[3], 10);
+
+                        // すでにステータスリストに同名がなければ追加（重複防止、0も含める）
+                        // ※ 未練や依存、あるいはマニューバ名っぽくないもの（「頭」「腕」などの部位自体や説明文を除外）
+                        if (partName && !['名前', 'ポジション', 'クラス', '行動値', 'メインクラス', 'サブクラス'].includes(partName)) {
+                            // 既に同じラベルがなければ追加
+                            if (!statusList.some(s => s.label === partName)) {
+                                statusList.push({ label: partName, value: val, max: max });
+                            }
+                        }
+                    }
+                });
+
+                // --- 5. 記憶のカケラの抽出 ---
+                let memoryFragments = [];
+                let capturingMemory = false;
+
+                lines.forEach(line => {
+                    const trimmed = line.trim();
+                    if (trimmed.startsWith('[記憶のカケラ]')) {
+                        capturingMemory = true;
+                        let content = trimmed.replace(/.*\[記憶のカケラ\][\s　]*/, '').trim();
+                        if (content) {
+                            let mMatch = content.match(/^(\d+:[【［].*?[】］])/);
+                            if (mMatch) memoryFragments.push(mMatch[1]);
+                        }
+                        return;
+                    }
+                    if (capturingMemory) {
+                        if (trimmed.startsWith('■') || trimmed.startsWith('[')) {
+                            capturingMemory = false;
+                            return;
+                        }
+                        if (trimmed) {
+                            let mMatch = trimmed.match(/^(\d+:[【［].*?[】］])/);
+                            if (mMatch) {
+                                memoryFragments.push(mMatch[1]);
+                            }
+                        }
+                    }
+                });
+
+                const memoryText = memoryFragments.length > 0 ? memoryFragments.join('') : '記憶のカケラなし';
+
+                // --- 6. マニューバ部分の解析と整理 ---
                 let maneuverGroups = {};
 
                 lines.forEach(line => {
@@ -200,8 +233,6 @@
                                 }
                                 maneuverGroups[category].push({ name: mName, timing, cost, range, effect });
                             }
-                        } else {
-                            warnings.push(`マニューバ行の解析に失敗しました: "${line.trim()}"`);
                         }
                     }
                 });
@@ -213,21 +244,17 @@
                 }
                 const maneuversText = memoSections.length > 0 ? memoSections.join('\n\n') : 'マニューバなし';
 
-                // --- 5. メモ欄全体の組み立て ---
-                const troubleText = statusList.map(s => `${s.label}：${s.value}/${s.max}`).join('\n');
-
+                // --- 7. メモ欄全体の組み立て ---
                 const memoText = `名前: ${dollName}\n` +
                                  `ポジション: ${position}\n` +
                                  `クラス： ${charClass}\n` +
-                                 ` 行動値: ${initiative}\n\n` +
+                                 `行動値: ${initiative}\n\n` +
                                  `記憶のかけら\n` +
                                  memoryText + `\n\n` +
-                                 `未練・依存\n` +
-                                 troubleText + `\n\n` +
                                  `--- マニューバ一覧 ---\n` +
                                  maneuversText;
 
-                // --- 6. チャットパレット用のテキスト組み立て ---
+                // --- 8. チャットパレット用のテキスト組み立て ---
                 let chatPaletteLines = [
                     "nm 【未練決定】",
                     "1nc 【対話判定】",
