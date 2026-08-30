@@ -109,7 +109,8 @@
                 for (const [category, items] of Object.entries(maneuverGroups)) {
                     chatPaletteLines.push(`--${category}--`);
                     items.forEach(i => {
-                        chatPaletteLines.push(`【${i.name}】《T:${i.timing}／C:${i.cost}／R:${i.range}》${i.effect}`);
+                        // 文字列として \n がココフォリアに渡るようにエスケープを調整
+                        chatPaletteLines.push(`【${i.name}】\\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\\n${i.effect}`);
                     });
                 }
 
