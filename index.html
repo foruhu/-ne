@@ -33,7 +33,7 @@
         <div id="jsonPreview" class="result">（ここに結果が表示されます）</div>
     </div>
 
-   <script>
+  <script>
         function convertAndCopy() {
             try {
                 const rawText = document.getElementById('inputText').value;
@@ -58,7 +58,7 @@
                 const initMatch = rawText.match(/行動値[：\s]*(\d+)/);
                 const initiative = initMatch ? parseInt(initMatch[1], 10) : 0;
 
-                // --- マニューバ部分の解析と整理（メモ欄・チャットパレット共通） ---
+                // --- マニューバ部分の解析と整理 ---
                 const lines = rawText.split('\n');
                 let maneuverGroups = {}; 
 
@@ -84,7 +84,7 @@
                     }
                 });
 
-                // 1. メモ欄用のテキスト組み立て
+                // 1. メモ欄用のテキスト組み立て（こちらは通常の改行で見やすく）
                 let memoSections = [];
                 for (const [category, items] of Object.entries(maneuverGroups)) {
                     let itemTexts = items.map(i => `【${i.name}】\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\n${i.effect}`);
@@ -96,7 +96,7 @@
                                  `--- マニューバ一覧 ---\n` +
                                  maneuversText;
 
-                // 2. チャットパレット用のテキスト組み立て（ご希望の形式に準拠）
+                // 2. チャットパレット用のテキスト組み立て（マニューバ部分を \n で結合）
                 let chatPaletteLines = [
                     "nm 【未練決定】",
                     "1nc 【対話判定】",
@@ -107,7 +107,8 @@
                 for (const [category, items] of Object.entries(maneuverGroups)) {
                     chatPaletteLines.push(`--${category}--`);
                     items.forEach(i => {
-                        chatPaletteLines.push(`【${i.name}】\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\n${i.effect}`);
+                        // 各要素を \n で繋いだ1行の文字列にする
+                        chatPaletteLines.push(`【${i.name}】\\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\\n${i.effect}`);
                     });
                 }
 
