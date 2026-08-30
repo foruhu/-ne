@@ -69,7 +69,7 @@
                 const lines = rawText.split('\n');
                 const warnings = [];
 
-                // --- 1. 基本データの抽出（タイトルや名前の取得） ---
+                // --- 1. 基本データの抽出（名前・タイトル等） ---
                 let dollName = '';
                 let fallbackTitle = '';
                 let position = '未設定';
@@ -166,22 +166,22 @@
                     }
                 });
 
-                // --- 4. パーツ（せぼね等）の抽出（柔軟な判定） ---
+                // --- 4. パーツ（せぼね等）のステータス抽出（部位ブロック対応） ---
+                // 保管所では「[頭]」「[胴]」などの部位ブロック、またはマニューバ欄にパーツが記載されます。
+                // 各行から「パーツ名: 現在値/最大値」を正確に抽出します。
                 lines.forEach(line => {
                     const trimmed = line.trim();
                     const normalized = trimmed.replace(/：/g, ':');
                     
-                    // 「パーツ名: 現在値/最大値」の形式をより広くキャッチする
-                    // 例: [頭] せぼね: 1/1 や せぼね: 0/1 などを検出
-                    let partMatch = normalized.match(/(?:[【［].*?[】］])?\s*([^:\s]+)\s*[:：]\s*(\d+)\s*\/\s*(\d+)/);
+                    // 例: [胴] せぼね: 1/1 や せぼね: 0/1 などのパターン
+                    let partMatch = normalized.match(/(?:[【［].*?[】］])?\s*([^:\s]+)\s*:\s*(\d+)\s*\/\s*(\d+)/);
                     if (partMatch) {
                         const partName = partMatch[1].trim();
                         const val = parseInt(partMatch[2], 10);
                         const max = parseInt(partMatch[3], 10);
 
-                        const ignoreWords = ['名前', 'ポジション', 'クラス', '行動値', 'メインクラス', 'サブクラス', '記憶のカケラ', '未練', 'キャラクター名'];
+                        const ignoreWords = ['名前', 'ポジション', 'クラス', '行動値', 'メインクラス', 'サブクラス', '記憶のカケラ', '未練', 'キャラクター名', 'タイミング', 'コスト', '射程'];
                         if (partName && !ignoreWords.includes(partName)) {
-                            // まだステータスリストに存在しない場合のみ追加
                             if (!statusList.some(s => s.label === partName)) {
                                 statusList.push({ label: partName, value: val, max: max });
                             }
