@@ -121,9 +121,10 @@
                     }
                 }
 
-                // --- 2. ステータスリストの初期化（未練・依存のみを抽出） ---
+                // --- 2. ステータスリストの初期化 ---
                 let statusList = [];
 
+                // --- 3. 未練・依存の抽出 ---
                 let inTrouble = false;
 
                 lines.forEach(line => {
@@ -165,9 +166,33 @@
                     }
                 });
 
-                // ※パーツ（せぼね等）は自動読み取りせず、必要に応じてココフォリア側で手動追加する仕様に変更しました
+                // --- 4. パーツ（せぼね等）のステータス抽出 ---
+                // 「せぼね」をはじめとするパーツ行（例: [胴] せぼね: 1/1 や せぼね: 1/1）をステータス欄に追加
+                lines.forEach(line => {
+                    const trimmed = line.trim();
+                    const normalized = trimmed.replace(/：/g, ':');
+                    
+                    let partMatch = normalized.match(/(?:[【［].*?[】］])?\s*([^:\s]+)\s*:\s*(\d+)\s*\/\s*(\d+)/);
+                    if (partMatch) {
+                        const partName = partMatch[1].trim();
+                        const val = parseInt(partMatch[2], 10);
+                        const max = parseInt(partMatch[3], 10);
 
-                // --- 3. 記憶のカケラの抽出 ---
+                        const ignoreWords = ['名前', 'ポジション', 'クラス', '行動値', 'メインクラス', 'サブクラス', '記憶のカケラ', '未練', 'キャラクター名', 'タイミング', 'コスト', '射程'];
+                        if (partName && !ignoreWords.includes(partName)) {
+                            if (!statusList.some(s => s.label === partName)) {
+                                statusList.push({ label: partName, value: val, max: max });
+                            }
+                        }
+                    }
+                });
+
+                if (statusList.length === 0) {
+                    warnings.push('ステータス（未練やパーツ）の情報が読み取れませんでした。');
+                    statusList = [{ label: 'せぼね', value: 1, max: 1 }];
+                }
+
+                // --- 5. 記憶のカケラの抽出 ---
                 let memoryFragments = [];
                 let capturingMemory = false;
 
@@ -198,7 +223,7 @@
 
                 const memoryText = memoryFragments.length > 0 ? memoryFragments.join('') : '記憶のカケラなし';
 
-                // --- 4. マニューバ部分の解析と整理 ---
+                // --- 6. マニューバ部分の解析と整理 ---
                 let maneuverGroups = {};
 
                 lines.forEach(line => {
@@ -231,7 +256,7 @@
                 }
                 const maneuversText = memoSections.length > 0 ? memoSections.join('\n\n') : 'マニューバなし';
 
-                // --- 5. メモ欄全体の組み立て ---
+                // --- 7. メモ欄全体の組み立て ---
                 const memoText = `名前: ${dollName}\n` +
                                  `ポジション: ${position}\n` +
                                  `クラス： ${charClass}\n` +
@@ -241,7 +266,7 @@
                                  `--- マニューバ一覧 ---\n` +
                                  maneuversText;
 
-                // --- 6. チャットパレット用のテキスト組み立て ---
+                // --- 8. チャットパレット用のテキスト組み立て ---
                 let chatPaletteLines = [
                     "nm 【未練決定】",
                     "1nc 【対話判定】",
