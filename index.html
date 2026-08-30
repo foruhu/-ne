@@ -60,7 +60,12 @@
 
                 // --- マニューバ部分の変換とカテゴリ重複の整理 ---
                 const lines = rawText.split('\n');
-                let maneuverGroups = {}; // カテゴリごとにマニューバをまとめる
+                let maneuverGroups = {}; 
+                let chatPaletteLines = [
+                    "2d6+0 判定",
+                    "2d6 狂気判定",
+                    "----------------------------------"
+                ];
 
                 lines.forEach(line => {
                     if (line.includes('[ポジション]') || line.includes('[メインクラス]') || line.includes('[サブクラス]') || line.includes('[頭]') || line.includes('[腕]') || line.includes('[胴]') || line.includes('[脚]')) {
@@ -79,12 +84,20 @@
                                     maneuverGroups[category] = [];
                                 }
                                 maneuverGroups[category].push(`【${mName}】《T:${timing}／C:${cost}／R:${range}》${effect}`);
+
+                                // --- チャットパレット用のコマンド自動生成 ---
+                                // アクションや白兵攻撃、肉弾攻撃などの場合はチャットパレットにダイスロールを追加
+                                if (effect.includes('攻撃') || effect.includes('移動') || effect.includes('支援') || effect.includes('妨害') || timing.includes('アクション')) {
+                                    chatPaletteInfo = `5>=[攻撃力] ${mName} (攻撃/判定)`;
+                                    chatPaletteLines.push(`// 【${mName}】 (${timing})`);
+                                    chatPaletteLines.push(`2d6 ${mName}`);
+                                }
                             }
                         }
                     }
                 });
 
-                // カテゴリごとに、見出しは最初の一つだけにしてテキストを組み立てる
+                // メモ欄用のテキスト組み立て
                 let formattedSections = [];
                 for (const [category, items] of Object.entries(maneuverGroups)) {
                     let sectionText = `--${category}--\n` + items.join('\n');
@@ -93,10 +106,12 @@
 
                 const maneuversText = formattedSections.length > 0 ? formattedSections.join('\n\n') : 'マニューバなし';
 
-                // --- ココフォリア用メモの整形 ---
                 const memoText = `【${dollName}】\nポジション: ${position} / クラス: ${charClass}\n行動値: ${initiative}\n\n` +
                                  `--- マニューバ一覧 ---\n` +
                                  maneuversText;
+
+                // チャットパレット文字列の結合
+                const chatPaletteText = chatPaletteLines.join('\n');
 
                 // --- ココフォリア用JSON構造 ---
                 const cocofoliaData = {
@@ -115,7 +130,7 @@
                             { "label": "腕部", "value": 2, "max": 2 },
                             { "label": "脚部", "value": 2, "max": 2 }
                         ],
-                        "chatPalette": "1+1 判定\n2d6 狂気判定\n5>=[攻撃力] 攻撃"
+                        "chatPalette": chatPaletteText
                     }
                 };
 
