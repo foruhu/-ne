@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ネクロニカ ココフォリア駒変換ツール</title>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 30px auto; padding: 20px; background: #f4f6f8; color: #333; }
+        h2 { color: #b51a1a; }
+        .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        textarea { width: 100%; height: 220px; font-family: monospace; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #b51a1a; color: white; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #901313; }
+        #outputMessage { margin-top: 10px; color: #2e7d32; font-weight: bold; }
+        .result { background: #272822; color: #f8f8f2; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 250px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+
+    <h2>永い後日談のネクロニカ - ココフォリア駒変換ツール</h2>
+    <div class="card">
+        <p>1. <a href="https://charasheet.vampire-blood.net/" target="_blank">キャラクター保管所</a>でネクロニカのキャラシを開く</p>
+        <p>2. 「データ出力」＞「テキスト」をクリックし、表示されたテキストをすべてコピーする</p>
+        <p>3. 下の入力欄に貼り付けてボタンを押す</p>
+        
+        <textarea id="inputText" placeholder="ここにキャラクター保管所のテキスト出力をペーストしてください..."></textarea>
+        <br><br>
+        <button onclick="convertAndCopy()">ココフォリア用JSONをクリップボードにコピー</button>
+        <div id="outputMessage"></div>
+    </div>
+
+    <div class="card">
+        <h3>生成されるJSONプレビュー:</h3>
+        <div id="jsonPreview" class="result">（ここに結果が表示されます）</div>
+    </div>
+
+    <script>
+        function convertAndCopy() {
+            const rawText = document.getElementById('inputText').value;
+            if (!rawText) {
+                alert('テキストを入力してください。');
+                return;
+            }
+
+            // --- データの正規表現による抽出 ---
+            // ドール名
+            const nameMatch = rawText.match(/名前[：\s]*(.+)/) || rawText.match(/ドール名[：\s]*(.+)/);
+            const dollName = nameMatch ? nameMatch[1].trim() : '名無しのドール';
+
+            // ポジション
+            const posMatch = rawText.match(/ポジション[：\s]*(.+)/);
+            const position = posMatch ? posMatch[1].trim() : '未設定';
+
+            // プレイヤー名
+            const playerMatch = rawText.match(/プレイヤー名[：\s]*(.+)/);
+            const player = playerMatch ? playerMatch[1].trim() : '';
+
+            // --- ココフォリア用JSON構造の構築 ---
+            const cocofoliaData = {
+                "kind": "character",
+                "data": {
+                    "name": dollName,
+                    "memo": `プレイヤー: ${player}\nポジション: ${position}\n\n--- キャラクターシート情報 ---\n${rawText}`,
+                    "initiative": 0,
+                    "params": [
+                        { "label": "狂気度", "value": 0, "max": 10 },
+                        { "label": "ドゥーム", "value": 0, "max": 5 }
+                    ],
+                    "status": [
+                        { "label": "頭部", "value": 2, "max": 2 },
+                        { "label": "胴体", "value": 3, "max": 3 },
+                        { "label": "腕部", "value": 2, "max": 2 },
+                        { "label": "脚部", "value": 2, "max": 2 }
+                    ],
+                    "chatPalette": "1+1 判定\n2d6 狂気判定\n5>=[攻撃力] 攻撃"
+                }
+            };
+
+            const jsonString = JSON.stringify(cocofoliaData, null, 2);
+            
+            // プレビュー表示
+            document.getElementById('jsonPreview').textContent = jsonString;
+
+            // クリップボードへコピー
+            navigator.clipboard.writeText(jsonString).then(() => {
+                document.getElementById('outputMessagetextContent = 'コピー完了しました！ココフォリアの部屋を開いて [Ctrl + V] で配置してください。';
+            }).catch(err => {
+                // フォールバック（万が一クリップボードAPIがブロックされた場合）
+                alert('クリップボードへのコピーに失敗しました。プレビューから手動でコピーしてください。');
+            });
+        }
+    </script>
+
+</body>
+</html>
