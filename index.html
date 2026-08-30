@@ -84,7 +84,7 @@
                     }
                 });
 
-                // 1. メモ欄用のテキスト組み立て（こちらは通常の改行で見やすく）
+                // 1. メモ欄用のテキスト組み立て
                 let memoSections = [];
                 for (const [category, items] of Object.entries(maneuverGroups)) {
                     let itemTexts = items.map(i => `【${i.name}】\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\n${i.effect}`);
@@ -96,7 +96,7 @@
                                  `--- マニューバ一覧 ---\n` +
                                  maneuversText;
 
-                // 2. チャットパレット用のテキスト組み立て（マニューバ部分を \n で結合）
+                // 2. チャットパレット用のテキスト組み立て（\n を文字列として埋め込む）
                 let chatPaletteLines = [
                     "nm 【未練決定】",
                     "1nc 【対話判定】",
@@ -107,7 +107,7 @@
                 for (const [category, items] of Object.entries(maneuverGroups)) {
                     chatPaletteLines.push(`--${category}--`);
                     items.forEach(i => {
-                        // 各要素を \n で繋いだ1行の文字列にする
+                        // 文字列として \n がココフォリアに渡るようにエスケープを調整
                         chatPaletteLines.push(`【${i.name}】\\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\\n${i.effect}`);
                     });
                 }
