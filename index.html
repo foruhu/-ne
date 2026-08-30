@@ -45,35 +45,47 @@
                     return;
                 }
 
-                // --- データの抽出 ---
-                const nameMatch = rawText.match(/キャラクター名[：\s]*(.+)/) || rawText.match(/名前[：\s]*(.+)/);
-                const dollName = nameMatch ? nameMatch[1].trim() : '名無しのドール';
-
-                const posMatch = rawText.match(/ポジション[：\s]*(.+)/);
-                const position = posMatch ? posMatch[1].trim() : '未設定';
-
-                const classMatch = rawText.match(/クラス[：\s]*(.+)/);
-                const charClass = classMatch ? classMatch[1].trim() : '';
-
-                const initMatch = rawText.match(/行動値[：\s]*(\d+)/);
-                const initiative = initMatch ? parseInt(initMatch[1], 10) : 0;
-
-                // --- 記憶のカケラの抽出 ---
-                let memoryFragments = [];
                 const lines = rawText.split('\n');
+
+                // --- 1. 基本データの抽出（より確実にマッチさせる） ---
+                let dollName = '名無しのドール';
+                let position = '未設定';
+                let charClass = '';
+                let initiative = 0;
+
+                lines.forEach(line => {
+                    if (line.match(/^キャラクター名[：\s]*(.+)/) || line.match(/^名前[：\s]*(.+)/)) {
+                        let match = line.match(/(?:キャラクター名|名前)[：\s]*(.+)/);
+                        if (match) dollName = match[1].trim();
+                    }
+                    if (line.match(/^ポジション[：\s]*(.+)/)) {
+                        let match = line.match(/ポジション[：\s]*(.+)/);
+                        if (match) position = match[1].trim();
+                    }
+                    if (line.match(/^クラス[：\s]*(.+)/)) {
+                        let match = line.match(/クラス[：\s]*(.+)/);
+                        if (match) charClass = match[1].trim();
+                    }
+                    if (line.match(/^行動値[：\s]*(\d+)/)) {
+                        let match = line.match(/行動値[：\s]*(\d+)/);
+                        if (match) initiative = parseInt(match[1], 10);
+                    }
+                });
+
+                // --- 2. 記憶のカケラの抽出 ---
+                let memoryFragments = [];
                 let capturingMemory = false;
 
                 lines.forEach(line => {
                     if (line.includes('[記憶のカケラ]')) {
                         capturingMemory = true;
-                        // 同行にデータがある場合を考慮
-                        let content = line.replace(/.*\[記憶のカケラ\][\s　]*/, '').trim();
+                        let content = line.replace(/.*\[記憶のカケラ\][\s ]*/, '').trim();
                         if (content) memoryFragments.push(content);
                         return;
                     }
                     if (capturingMemory) {
-                        // 次のセクション（■などで始まる行など）に入ったら終了
-                        if (line.startsWith('■') || line.startsWith('【') && !line.includes('：')) {
+                        // 次のセクション（■や他の大見出し）に来たら終了
+                        if (line.startsWith('■') || (line.startsWith('【') && line.includes('】') && !line.includes(':'))) {
                             capturingMemory = false;
                         } else {
                             let trimmed = line.trim();
@@ -86,10 +98,11 @@
 
                 const memoryText = memoryFragments.length > 0 ? memoryFragments.join('\n') : '記憶のカケラなし';
 
-                // --- マニューバ部分の解析と整理 ---
+                // --- 3. マニューバ部分の解析と整理 ---
                 let maneuverGroups = {}; 
 
                 lines.forEach(line => {
+                    // パーツやポジション・クラスの行を安全に判定
                     if (line.includes('[ポジション]') || line.includes('[メインクラス]') || line.includes('[サブクラス]') || line.includes('[頭]') || line.includes('[腕]') || line.includes('[胴]') || line.includes('[脚]')) {
                         let parts = line.split(':').map(p => p.trim());
                         if (parts.length >= 5) {
@@ -111,7 +124,7 @@
                     }
                 });
 
-                // 1. メモ欄用のマニューバテキスト組み立て
+                // マニューバ一覧のテキスト組み立て
                 let memoSections = [];
                 for (const [category, items] of Object.entries(maneuverGroups)) {
                     let itemTexts = items.map(i => `【${i.name}】\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\n${i.effect}`);
@@ -119,16 +132,15 @@
                 }
                 const maneuversText = memoSections.length > 0 ? memoSections.join('\n\n') : 'マニューバなし';
 
-                // 2. メモ欄全体の組み立て（ご指定のレイアウト＋記憶のカケラを追加）
+                // --- 4. メモ欄全体の組み立て（ご指定のレイアウト） ---
                 const memoText = `${dollName}\n` +
                                  `ポジション: ${position}\n` +
                                  `クラス： ${charClass} / 行動値: ${initiative}\n\n` +
-                                 `--- 記憶のカケラ ---\n` +
                                  memoryText + `\n\n` +
                                  `--- マニューバ一覧 ---\n` +
                                  maneuversText;
 
-                // 3. チャットパレット用のテキスト組み立て（従来通り \n を挟む形式）
+                // --- 5. チャットパレット用のテキスト組み立て ---
                 let chatPaletteLines = [
                     "nm 【未練決定】",
                     "1nc 【対話判定】",
