@@ -224,16 +224,19 @@
 
                 const memoryText = memoryFragments.length > 0 ? memoryFragments.join('\n') : '';
 
-                // --- 4. マニューバ部分の収集（カテゴリ別グループ化） ---
+                // --- 4. マニューバ部分の収集（どんなカテゴリ形式であっても大括弧内を広く拾うように修正） ---
                 let maneuverGroups = {};
 
                 lines.forEach(line => {
-                    if (line.includes('[ポジション]') || line.includes('[メインクラス]') || line.includes('[サブクラス]') || line.includes('[頭]') || line.includes('[腕]') || line.includes('[胴]') || line.includes('[脚]')) {
+                    // 大括弧が含まれていて、かつコロン等で区切られたデータ行を広く検出する
+                    let categoryMatch = line.match(/\[(.*?)\]/);
+                    if (categoryMatch) {
                         const normalized = line.replace(/：/g, ':');
                         let parts = normalized.split(':').map(p => p.trim());
+                        
+                        // マニューバ形式（名前 : タイミング : コスト : 射程 : 効果）の行を判定
                         if (parts.length >= 5) {
-                            let categoryMatch = line.match(/\[(.*?)\]/);
-                            let category = categoryMatch ? categoryMatch[1] : '';
+                            let category = categoryMatch[1];
                             let mName = parts[0].replace(/\[.*?\]/, '').trim();
                             let timing = parts[1];
                             let cost = parts[2];
@@ -292,7 +295,6 @@
                 for (const [category, items] of Object.entries(maneuverGroups)) {
                     chatPaletteLines.push(`--${category}--`);
                     items.forEach(i => {
-                        // 名称が「こぶし」または「あご」の場合のみ先頭に 1na を付与する
                         let commandPrefix = (i.name === 'こぶし' || i.name === 'あご') ? '1na ' : '';
                         chatPaletteLines.push(`${commandPrefix}【${i.name}】\\n《T:${i.timing}／C:${i.cost}／R:${i.range}》\\n${i.effect}`);
                     });
